@@ -3,7 +3,8 @@
 
 run_proxy() ->
     tcp_server:start_raw_server(11554, fun(S) -> ?MODULE:start_rtsp_proxy("172.28.1.90", 554, S) end, 100, 0),
-    tcp_server:start_raw_server(1180, fun(S) -> ?MODULE:start_onvif_proxy("172.28.1.90", 80, {<<"172.28.1.90:554">>, <<"127.0.0.1:11554">>}, S) end, 100, 0),
+    tcp_server:start_raw_server(1181, fun(S) -> ?MODULE:start_rtsp_proxy("172.28.1.90", 80, S) end, 100, 0),
+    tcp_server:start_raw_server(1180, fun(S) -> ?MODULE:start_onvif_proxy("172.28.1.90", 80, [{<<"172.28.1.90:554">>, <<"127.0.0.1:11554">>},{<<"172.28.1.90:80">>, <<"127.0.0.1:1180">>}], S) end, 100, 0),
     ok.
 
 start_onvif_proxy(Host, Port, Substr, Socket) ->
@@ -11,7 +12,7 @@ start_onvif_proxy(Host, Port, Substr, Socket) ->
     io:format("New ONVIF connection~n", []),
     run_replace_proxy(Socket, SrvSocket, Substr).
 
-run_replace_proxy(S1, S2, {Orig, Repl}=Substr) ->
+run_replace_proxy(S1, S2, Substr) ->
   receive
     {tcp_closed, _} -> ok;
     {tcp_error, _, _Reason} -> ok;
@@ -19,7 +20,7 @@ run_replace_proxy(S1, S2, {Orig, Repl}=Substr) ->
         gen_tcp:send(S2, Data),
         run_replace_proxy(S1, S2, Substr);
     {tcp,S2,Data} ->
-        NewData = binary:replace(Data, Orig, Repl),
+        NewData = lists:foldl(fun({Orig,Repl},DataIn)->binary:replace(DataIn, Orig, Repl)end, Data, Substr),
         gen_tcp:send(S1, NewData), 
         run_replace_proxy(S1, S2, Substr);
     _Unk -> io:format("Unknown message ~p~n", [_Unk]), run_proxy(S1, S2)
