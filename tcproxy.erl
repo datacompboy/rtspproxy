@@ -20,7 +20,7 @@ run_replace_proxy(S1, S2, Substr) ->
         gen_tcp:send(S2, Data),
         run_replace_proxy(S1, S2, Substr);
     {tcp,S2,Data} ->
-        NewData = lists:foldl(fun({Orig,Repl},DataIn)->binary:replace(DataIn, Orig, Repl)end, Data, Substr),
+        NewData = lists:foldl(fun({Orig,Repl},DataIn)->binary:replace(DataIn, Orig, Repl, [global])end, Data, Substr),
         gen_tcp:send(S1, NewData), 
         run_replace_proxy(S1, S2, Substr);
     _Unk -> io:format("Unknown message ~p~n", [_Unk]), run_proxy(S1, S2)
